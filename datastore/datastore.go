@@ -173,21 +173,21 @@ func (ds *Datastore) NumRegisteredValidators() (uint64, error) {
 }
 
 // SaveValidatorRegistration saves a validator registration into both Redis and the database
-func (ds *Datastore) SaveValidatorRegistration(entry builderApiV1.SignedValidatorRegistration) error {
+func (ds *Datastore) SaveValidatorRegistration(entry builderApiV1.SignedValidatorRegistration) (int64, error) {
 	// First save in the database
-	err := ds.db.SaveValidatorRegistration(database.SignedValidatorRegistrationToEntry(entry))
+	id, err := ds.db.SaveValidatorRegistration(database.SignedValidatorRegistrationToEntry(entry))
 	if err != nil {
-		return errors.Wrap(err, "failed saving validator registration to database")
+		return 0, errors.Wrap(err, "failed saving validator registration to database")
 	}
 
 	// then save in redis
 	pk := common.NewPubkeyHex(entry.Message.Pubkey.String())
 	err = ds.redis.SetValidatorRegistrationTimestampIfNewer(pk, uint64(entry.Message.Timestamp.Unix()))
 	if err != nil {
-		return errors.Wrap(err, "failed saving validator registration to redis")
+		return 0, errors.Wrap(err, "failed saving validator registration to redis")
 	}
 
-	return nil
+	return id, nil
 }
 
 // GetGetPayloadResponse returns the getPayload response from memory or Redis or Database

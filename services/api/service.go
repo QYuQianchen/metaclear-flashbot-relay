@@ -18,6 +18,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"net"
 
 	"github.com/NYTimes/gziphandler"
 	builderApi "github.com/attestantio/go-builder-client/api"
@@ -552,7 +553,7 @@ func (api *RelayAPI) isDeneb(slot uint64) bool {
 
 func (api *RelayAPI) startValidatorRegistrationDBProcessor() {
 	for valReg := range api.validatorRegC {
-		err := api.datastore.SaveValidatorRegistration(valReg)
+		_, err := api.datastore.SaveValidatorRegistration(valReg)
 		if err != nil {
 			api.log.WithError(err).WithFields(logrus.Fields{
 				"reg_pubkey":       valReg.Message.Pubkey,
@@ -890,6 +891,40 @@ func (api *RelayAPI) handleStatus(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (api *RelayAPI) handleMetadata(reqName string, t time.Time, k string, req *http.Request) {
+	ua := req.UserAgent()
+
+	ip, port, _ := net.SplitHostPort(req.RemoteAddr) // Extract IP address from RemoteAddr
+
+	// If the application is behind a reverse proxy, get the client's IP from X-Forwarded-For or X-Real-IP
+	forwarded := req.Header.Get("X-Forwarded-For")
+	if forwarded != "" {
+		// // If there are multiple IPs, this gets the first one
+		// ips := strings.Split(forwarded, ",")
+		// ip = strings.TrimSpace(ips[0])
+		ip = forwarded // If there are multiple IPs, log the comma-separated IPs
+	} else {
+		realIP := req.Header.Get("X-Real-IP")
+		if realIP != "" {
+			ip = realIP
+		}
+	}
+
+	log := api.log.WithFields(logrus.Fields{
+		"method":        reqName,
+		"receivedAt":    t.Format(time.RFC3339),
+		"ua":            ua,
+		"ip":            ip, // Log IP address
+		"port":          port, // Log port
+		"contentLength": req.ContentLength,
+		"key":		  	 k,
+	})
+
+	// store in the DB
+
+	log.Debug("handling metadata of http request")
+}
+
 // ---------------
 //  PROPOSER APIS
 // ---------------
@@ -901,6 +936,22 @@ func (api *RelayAPI) handleRoot(w http.ResponseWriter, req *http.Request) {
 
 func (api *RelayAPI) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	ua := req.UserAgent()
+	// ip, port, _ := net.SplitHostPort(req.RemoteAddr) // Extract IP address from RemoteAddr
+
+	// // If the application is behind a reverse proxy, get the client's IP from X-Forwarded-For or X-Real-IP
+	// forwarded := req.Header.Get("X-Forwarded-For")
+	// if forwarded != "" {
+	// 	// // If there are multiple IPs, this gets the first one
+	// 	// ips := strings.Split(forwarded, ",")
+	// 	// ip = strings.TrimSpace(ips[0])
+	// 	ip = forwarded // If there are multiple IPs, log the comma-separated IPs
+	// } else {
+	// 	realIP := req.Header.Get("X-Real-IP")
+	// 	if realIP != "" {
+	// 		ip = realIP
+	// 	}
+	// }
+
 	log := api.log.WithFields(logrus.Fields{
 		"method":        "registerValidator",
 		"ua":            ua,
@@ -1087,6 +1138,8 @@ func (api *RelayAPI) handleRegisterValidator(w http.ResponseWriter, req *http.Re
 		numRegNew += 1
 
 		// Save to database
+		// store the metadata
+		go api.handleMetadata("registerValidator", start, signedValidatorRegistration.Message.Pubkey.String() ,req)
 		select {
 		case api.validatorRegC <- *signedValidatorRegistration:
 		default:
