@@ -20,8 +20,8 @@ func (db MockDB) NumRegisteredValidators() (count uint64, err error) {
 	return 0, nil
 }
 
-func (db MockDB) SaveValidatorRegistration(entry ValidatorRegistrationEntry) error {
-	return nil
+func (db MockDB) SaveValidatorRegistration(entry ValidatorRegistrationEntry) (int64, error) {
+	return 0, nil
 }
 
 func (db MockDB) GetValidatorRegistration(pubkey string) (*ValidatorRegistrationEntry, error) {

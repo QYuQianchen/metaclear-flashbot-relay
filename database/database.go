@@ -20,7 +20,7 @@ import (
 
 type IDatabaseService interface {
 	NumRegisteredValidators() (count uint64, err error)
-	SaveValidatorRegistration(entry ValidatorRegistrationEntry) error
+	SaveValidatorRegistration(entry ValidatorRegistrationEntry) (int64, error)
 	GetLatestValidatorRegistrations(timestampOnly bool) ([]*ValidatorRegistrationEntry, error)
 	GetValidatorRegistration(pubkey string) (*ValidatorRegistrationEntry, error)
 	GetValidatorRegistrationsForPubkeys(pubkeys []string) ([]*ValidatorRegistrationEntry, error)
@@ -125,7 +125,7 @@ func (s *DatabaseService) NumValidatorRegistrationRows() (count uint64, err erro
 	return count, err
 }
 
-func (s *DatabaseService) SaveValidatorRegistration(entry ValidatorRegistrationEntry) error {
+func (s *DatabaseService) SaveValidatorRegistration(entry ValidatorRegistrationEntry) (int64, error) {
 	query := `WITH latest_registration AS (
 		SELECT DISTINCT ON (pubkey) pubkey, fee_recipient, timestamp, gas_limit, signature FROM ` + vars.TableValidatorRegistration + ` WHERE pubkey=:pubkey ORDER BY pubkey, timestamp DESC limit 1
 	)
@@ -134,8 +134,16 @@ func (s *DatabaseService) SaveValidatorRegistration(entry ValidatorRegistrationE
 	WHERE NOT EXISTS (
 		SELECT 1 from latest_registration WHERE pubkey=:pubkey AND :timestamp <= latest_registration.timestamp OR (:fee_recipient = latest_registration.fee_recipient AND :gas_limit = latest_registration.gas_limit)
 	);`
-	_, err := s.DB.NamedExec(query, entry)
-	return err
+	result, err := s.DB.NamedExec(query, entry)
+	if err != nil {
+		return 0, err
+	}
+	// get the uuid of the last insert
+	id, idErr := result.LastInsertId()
+	if idErr != nil {
+		return 0, idErr
+	}
+	return id, nil
 }
 
 func (s *DatabaseService) GetValidatorRegistration(pubkey string) (*ValidatorRegistrationEntry, error) {
