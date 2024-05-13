@@ -19,7 +19,7 @@ import (
 )
 
 type IDatabaseService interface {
-	SaveMetadata(reqName string, t time.Time, ua string, ip string, port string, contentLength int64, k string) (int64, error)
+	SaveMetadata(reqName string, t time.Time, ua string, ip string, port string, contentLength int64, k string) error
 
 	NumRegisteredValidators() (count uint64, err error)
 	SaveValidatorRegistration(entry ValidatorRegistrationEntry) (int64, error)
@@ -111,31 +111,22 @@ func (s *DatabaseService) prepareNamedQueries() (err error) {
 func (s *DatabaseService) Close() error {
 	return s.DB.Close()
 }
-
-func (s *DatabaseService) SaveMetadata(reqName string, t time.Time, ua string, ip string, port string, contentLength int64, k string) (int64, error) {
+func (s *DatabaseService) SaveMetadata(reqName string, t time.Time, ua string, ip string, port string, contentLength int64, k string) error {
 	entry := MetadataEntry{
-		Method:     reqName,
-		ReceivedAt: t,
-		UserAgent:  ua,
-		IP:         ip,
-		Port:       port,
-		ContentLength: contentLength,
-		Key:        k,
+		Method:         reqName,
+		ReceivedAt:     t,
+		UserAgent:      ua,
+		IP:             ip,
+		Port:           port,
+		ContentLength:  contentLength,
+		Key:            k,
 	}
 
 	query := `INSERT INTO ` + vars.TableMetadata + ` (method, received_at, ua, ip, port, content_length, key)
 	VALUES (:method, :received_at, :ua, :ip, :port, :content_length, :key);`
-	
-	result, err := s.DB.NamedExec(query, entry)
-	if err != nil {
-		return 0, err
-	}
-	// get the id of the last insert
-	id, idErr := result.LastInsertId()
-	if idErr != nil {
-		return 0, idErr
-	}
-	return id, nil
+
+	_, err := s.DB.NamedExec(query, entry)
+	return err
 }
 
 // NumRegisteredValidators returns the number of unique pubkeys that have registered
@@ -161,17 +152,27 @@ func (s *DatabaseService) SaveValidatorRegistration(entry ValidatorRegistrationE
 	SELECT :pubkey, :fee_recipient, :timestamp, :gas_limit, :signature
 	WHERE NOT EXISTS (
 		SELECT 1 from latest_registration WHERE pubkey=:pubkey AND :timestamp <= latest_registration.timestamp OR (:fee_recipient = latest_registration.fee_recipient AND :gas_limit = latest_registration.gas_limit)
-	);`
-	result, err := s.DB.NamedExec(query, entry)
+	)
+	RETURNING id;`
+	result := struct {
+		ID int64 `db:"id"`
+	}{}
+	
+	rows, err := s.DB.NamedQuery(query, entry)
 	if err != nil {
 		return 0, err
 	}
-	// get the uuid of the last insert
-	id, idErr := result.LastInsertId()
-	if idErr != nil {
-		return 0, idErr
-	}
-	return id, nil
+
+	defer rows.Close()
+
+    if rows.Next() {
+        err = rows.StructScan(&result)
+        if err != nil {
+            return 0, err
+        }
+    }
+
+	return result.ID, nil
 }
 
 func (s *DatabaseService) GetValidatorRegistration(pubkey string) (*ValidatorRegistrationEntry, error) {

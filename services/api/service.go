@@ -924,7 +924,7 @@ func (api *RelayAPI) handleMetadata(reqName string, t time.Time, k string, req *
 	log.Debug("handling metadata of http request")
 	// Deferred saving of the builder submission to database (whenever this function ends)
 	defer func() {
-		_, err := api.db.SaveMetadata(reqName, t, ua, ip, port, req.ContentLength, k)
+		err := api.db.SaveMetadata(reqName, t, ua, ip, port, req.ContentLength, k)
 		if err != nil {
 			log.WithError(err).WithField("method", reqName).Error("saving request metadata to database failed")
 			return

@@ -224,7 +224,7 @@ func TestSaveMetadata(t *testing.T) {
 	require.Equal(t, uint64(0), cnt, "DB not empty to start")
 
 	// Save reg1
-	_, err = db.SaveMetadata(reg1.Method, reg1.ReceivedAt, reg1.UserAgent, reg1.IP, reg1.Port, reg1.ContentLength, reg1.Key)
+	err = db.SaveMetadata(reg1.Method, reg1.ReceivedAt, reg1.UserAgent, reg1.IP, reg1.Port, reg1.ContentLength, reg1.Key)
 	require.NoError(t, err)
 }
 
