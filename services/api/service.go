@@ -921,8 +921,15 @@ func (api *RelayAPI) handleMetadata(reqName string, t time.Time, k string, req *
 	})
 
 	// store in the DB
-
 	log.Debug("handling metadata of http request")
+	// Deferred saving of the builder submission to database (whenever this function ends)
+	defer func() {
+		_, err := api.db.SaveMetadata(reqName, t, ua, ip, port, req.ContentLength, k)
+		if err != nil {
+			log.WithError(err).WithField("method", reqName).Error("saving request metadata to database failed")
+			return
+		}
+	}()
 }
 
 // ---------------
@@ -936,21 +943,6 @@ func (api *RelayAPI) handleRoot(w http.ResponseWriter, req *http.Request) {
 
 func (api *RelayAPI) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	ua := req.UserAgent()
-	// ip, port, _ := net.SplitHostPort(req.RemoteAddr) // Extract IP address from RemoteAddr
-
-	// // If the application is behind a reverse proxy, get the client's IP from X-Forwarded-For or X-Real-IP
-	// forwarded := req.Header.Get("X-Forwarded-For")
-	// if forwarded != "" {
-	// 	// // If there are multiple IPs, this gets the first one
-	// 	// ips := strings.Split(forwarded, ",")
-	// 	// ip = strings.TrimSpace(ips[0])
-	// 	ip = forwarded // If there are multiple IPs, log the comma-separated IPs
-	// } else {
-	// 	realIP := req.Header.Get("X-Real-IP")
-	// 	if realIP != "" {
-	// 		ip = realIP
-	// 	}
-	// }
 
 	log := api.log.WithFields(logrus.Fields{
 		"method":        "registerValidator",
@@ -1298,6 +1290,9 @@ func (api *RelayAPI) handleGetPayload(w http.ResponseWriter, req *http.Request) 
 		"timestampRequestStart": receivedAt.UnixMilli(),
 	})
 
+	// store the metadata
+	go api.handleMetadata("getValidators", receivedAt, req.URL.Query().Get("id"), req)
+
 	// Log at start and end of request
 	log.Info("request initiated")
 	defer func() {
@@ -1640,6 +1635,9 @@ func (api *RelayAPI) handleGetPayload(w http.ResponseWriter, req *http.Request) 
 //
 // --------------------
 func (api *RelayAPI) handleBuilderGetValidators(w http.ResponseWriter, req *http.Request) {
+	// store the metadata
+	go api.handleMetadata("builderGetValidators", time.Now().UTC(), "",req)
+
 	api.proposerDutiesLock.RLock()
 	resp := api.proposerDutiesResponse
 	api.proposerDutiesLock.RUnlock()
@@ -1895,6 +1893,9 @@ func (api *RelayAPI) handleSubmitNewBlock(w http.ResponseWriter, req *http.Reque
 		"cancellationEnabled":   isCancellationEnabled,
 		"timestampRequestStart": receivedAt.UnixMilli(),
 	})
+
+	// store the metadata
+	go api.handleMetadata("submitNewBlock", receivedAt, strconv.FormatUint(headSlot, 10), req)
 
 	// Log at start and end of request
 	log.Info("request initiated")
