@@ -7,6 +7,7 @@ var (
 	tableBase = common.GetEnv("DB_TABLE_PREFIX", "dev")
 
 	TableMigrations             = tableBase + "_migrations"
+	TableMetadata  				= tableBase + "_metadata"
 	TableValidatorRegistration  = tableBase + "_validator_registration"
 	TableExecutionPayload       = tableBase + "_execution_payload"
 	TableBuilderBlockSubmission = tableBase + "_builder_block_submission"

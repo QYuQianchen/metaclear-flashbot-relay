@@ -59,6 +59,18 @@ func createValidatorRegistration(pubKey string) ValidatorRegistrationEntry {
 	}
 }
 
+func createMetadata(method string) MetadataEntry {
+	return MetadataEntry{
+		Method: method,
+		ReceivedAt: time.Now().UTC(),
+		UserAgent: "curl/7.64.1",
+		IP: "0.0.0.0",
+		Port: "12345",
+		ContentLength: 123,
+		Key: "0x8996515293fcd87ca09b5c6ffe5c17f043c6a1a3639cc9494a82ec8eb50a9b55c34b47675e573be40d9be308b1ca2908",
+	}
+}
+
 func getTestKeyPair(t *testing.T) (*phase0.BLSPubKey, *bls.SecretKey) {
 	t.Helper()
 	sk, _, err := bls.GenerateNewKeypair()
@@ -145,7 +157,7 @@ func TestSaveValidatorRegistration(t *testing.T) {
 	require.Equal(t, uint64(0), cnt, "DB not empty to start")
 
 	// Save reg1
-	err = db.SaveValidatorRegistration(reg1)
+	_, err = db.SaveValidatorRegistration(reg1)
 	require.NoError(t, err)
 	regX1, err := db.GetValidatorRegistration(reg1.Pubkey)
 	require.NoError(t, err)
@@ -155,7 +167,7 @@ func TestSaveValidatorRegistration(t *testing.T) {
 	require.Equal(t, uint64(1), cnt)
 
 	// Save reg2, should not insert
-	err = db.SaveValidatorRegistration(reg2)
+	_, err = db.SaveValidatorRegistration(reg2)
 	require.NoError(t, err)
 	regX1, err = db.GetValidatorRegistration(reg1.Pubkey)
 	require.NoError(t, err)
@@ -165,7 +177,7 @@ func TestSaveValidatorRegistration(t *testing.T) {
 	require.Equal(t, uint64(1), cnt)
 
 	// Save reg3, should insert
-	err = db.SaveValidatorRegistration(reg3)
+	_, err = db.SaveValidatorRegistration(reg3)
 	require.NoError(t, err)
 	regX1, err = db.GetValidatorRegistration(reg1.Pubkey)
 	require.NoError(t, err)
@@ -176,7 +188,7 @@ func TestSaveValidatorRegistration(t *testing.T) {
 	require.Equal(t, uint64(2), cnt)
 
 	// Save reg4, should insert
-	err = db.SaveValidatorRegistration(reg4)
+	_, err = db.SaveValidatorRegistration(reg4)
 	require.NoError(t, err)
 	regX1, err = db.GetValidatorRegistration(reg1.Pubkey)
 	require.NoError(t, err)
@@ -188,7 +200,7 @@ func TestSaveValidatorRegistration(t *testing.T) {
 	require.Equal(t, uint64(3), cnt)
 
 	// Save reg5, should not insert
-	err = db.SaveValidatorRegistration(reg5)
+	_, err = db.SaveValidatorRegistration(reg5)
 	require.NoError(t, err)
 	regX1, err = db.GetValidatorRegistration(reg1.Pubkey)
 	require.NoError(t, err)
@@ -198,6 +210,22 @@ func TestSaveValidatorRegistration(t *testing.T) {
 	cnt, err = db.NumValidatorRegistrationRows()
 	require.NoError(t, err)
 	require.Equal(t, uint64(3), cnt)
+}
+
+func TestSaveMetadata(t *testing.T) {
+	db := resetDatabase(t)
+
+	// reg1 is the initial registration
+	reg1 := createMetadata("registerValidator")
+
+	// Require empty DB
+	cnt, err := db.NumValidatorRegistrationRows()
+	require.NoError(t, err)
+	require.Equal(t, uint64(0), cnt, "DB not empty to start")
+
+	// Save reg1
+	_, err = db.SaveMetadata(reg1.Method, reg1.ReceivedAt, reg1.UserAgent, reg1.IP, reg1.Port, reg1.ContentLength, reg1.Key)
+	require.NoError(t, err)
 }
 
 func TestMigrations(t *testing.T) {

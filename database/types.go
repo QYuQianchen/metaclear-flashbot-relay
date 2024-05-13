@@ -261,3 +261,16 @@ type TooLateGetPayloadEntry struct {
 	BlockHash      string `db:"block_hash"`
 	MsIntoSlot     uint64 `db:"ms_into_slot"`
 }
+
+type MetadataEntry struct {
+	ID            int64     `db:"id"`
+	InsertedAt    time.Time `db:"inserted_at"`
+
+	Method        string    `db:"method"`
+	ReceivedAt    time.Time `db:"received_at"`
+	UserAgent     string    `db:"ua"`
+	IP            string    `db:"ip"`
+	Port          string	`db:"port"`
+	ContentLength int64     `db:"content_length"`
+	Key           string    `db:"key"`
+}

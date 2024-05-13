@@ -20,6 +20,10 @@ func (db MockDB) NumRegisteredValidators() (count uint64, err error) {
 	return 0, nil
 }
 
+func (db MockDB) SaveMetadata(reqName string, t time.Time, ua string, ip string, port string, contentLength int64, k string) (int64, error) {
+	return 0, nil
+}
+
 func (db MockDB) SaveValidatorRegistration(entry ValidatorRegistrationEntry) (int64, error) {
 	return 0, nil
 }

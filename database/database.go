@@ -19,6 +19,8 @@ import (
 )
 
 type IDatabaseService interface {
+	SaveMetadata(reqName string, t time.Time, ua string, ip string, port string, contentLength int64, k string) (int64, error)
+
 	NumRegisteredValidators() (count uint64, err error)
 	SaveValidatorRegistration(entry ValidatorRegistrationEntry) (int64, error)
 	GetLatestValidatorRegistrations(timestampOnly bool) ([]*ValidatorRegistrationEntry, error)
@@ -108,6 +110,32 @@ func (s *DatabaseService) prepareNamedQueries() (err error) {
 
 func (s *DatabaseService) Close() error {
 	return s.DB.Close()
+}
+
+func (s *DatabaseService) SaveMetadata(reqName string, t time.Time, ua string, ip string, port string, contentLength int64, k string) (int64, error) {
+	entry := MetadataEntry{
+		Method:     reqName,
+		ReceivedAt: t,
+		UserAgent:  ua,
+		IP:         ip,
+		Port:       port,
+		ContentLength: contentLength,
+		Key:        k,
+	}
+
+	query := `INSERT INTO ` + vars.TableMetadata + ` (method, received_at, ua, ip, port, content_length, key)
+	VALUES (:method, :received_at, :ua, :ip, :port, :content_length, :key);`
+	
+	result, err := s.DB.NamedExec(query, entry)
+	if err != nil {
+		return 0, err
+	}
+	// get the id of the last insert
+	id, idErr := result.LastInsertId()
+	if idErr != nil {
+		return 0, idErr
+	}
+	return id, nil
 }
 
 // NumRegisteredValidators returns the number of unique pubkeys that have registered
