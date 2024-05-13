@@ -6,6 +6,13 @@ in
 pkgs.mkShell {
   buildInputs = [ go ];
   shellHook = ''
+    function local_launch_full { 
+      echo "Building the modified MEV relayer..."
+      docker build -f Dockerfile -t "hoprnet/modified-mev-relayer:$(git rev-parse --short HEAD)" .
+      echo "Launching testnet with the modified MEV relayer with Kurtosis..."
+      kurtosis clean -a && kurtosis --enclave local-eth-testnet run /Users/qyu/Documents/ethereum-package --args-file /Users/qyu/Documents/mev-privacy-research/ethereum-package-params.yaml
+    }
+
     function run_housekeeper {
       echo "Exporting env variables..."
       set -o allexport && source .env && set +o allexport
