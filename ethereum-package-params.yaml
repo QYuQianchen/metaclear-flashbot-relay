@@ -106,7 +106,7 @@ grafana_additional_dashboards: []
 persistent: false
 mev_type: flashbots
 mev_params:
-  mev_relay_image: hoprnet/modified-mev-relayer:8d4f700
+  mev_relay_image: hoprnet/modified-mev-relayer:a6c5152
   mev_builder_image: ethpandaops/flashbots-builder:main
   mev_builder_cl_image: sigp/lighthouse:latest
   mev_boost_image: flashbots/mev-boost

@@ -1194,7 +1194,7 @@ func (api *RelayAPI) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 	})
 
 	// store the metadata
-	go api.handleMetadata("getHeader", requestTime, slotStr + " > " + strconv.FormatInt(msIntoSlot, 10) + " > ", req)
+	go api.handleMetadata("getHeader", requestTime, slotStr + " > " + strconv.FormatInt(msIntoSlot, 10) + " ms into slot", req)
 
 	if len(proposerPubkeyHex) != 98 {
 		api.RespondError(w, http.StatusBadRequest, common.ErrInvalidPubkey.Error())
@@ -1280,6 +1280,8 @@ func (api *RelayAPI) checkProposerSignature(block *common.VersionedSignedBlinded
 }
 
 func (api *RelayAPI) handleGetPayload(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+
 	api.getPayloadCallsInFlight.Add(1)
 	defer api.getPayloadCallsInFlight.Done()
 
@@ -1296,9 +1298,6 @@ func (api *RelayAPI) handleGetPayload(w http.ResponseWriter, req *http.Request) 
 		"idArg":                 req.URL.Query().Get("id"),
 		"timestampRequestStart": receivedAt.UnixMilli(),
 	})
-
-	// store the metadata
-	go api.handleMetadata("getValidators", receivedAt, req.URL.Query().Get("id"), req)
 
 	// Log at start and end of request
 	log.Info("request initiated")
@@ -1362,6 +1361,9 @@ func (api *RelayAPI) handleGetPayload(w http.ResponseWriter, req *http.Request) 
 		"timestampAfterDecode": decodeTime.UnixMilli(),
 		"proposerIndex":        proposerIndex,
 	})
+
+	// store the metadata
+	go api.handleMetadata("getPayload", receivedAt, vars["slot"] + vars["parent_hash"] + " > " + strconv.FormatInt(msIntoSlot, 10) + " ms into slot", req)
 
 	// Ensure the proposer index is expected
 	api.proposerDutiesLock.RLock()
@@ -1647,6 +1649,11 @@ func (api *RelayAPI) handleBuilderGetValidators(w http.ResponseWriter, req *http
 
 	api.proposerDutiesLock.RLock()
 	resp := api.proposerDutiesResponse
+
+	api.log.WithFields(logrus.Fields{
+		"proposerDutiesResponse": api.proposerDutiesResponse,
+	}).Info("proposerDutiesResponse")
+
 	api.proposerDutiesLock.RUnlock()
 	_, err := w.Write(*resp)
 	if err != nil {
@@ -1901,9 +1908,6 @@ func (api *RelayAPI) handleSubmitNewBlock(w http.ResponseWriter, req *http.Reque
 		"timestampRequestStart": receivedAt.UnixMilli(),
 	})
 
-	// store the metadata
-	go api.handleMetadata("submitNewBlock", receivedAt, strconv.FormatUint(headSlot, 10), req)
-
 	// Log at start and end of request
 	log.Info("request initiated")
 	defer func() {
@@ -1997,6 +2001,10 @@ func (api *RelayAPI) handleSubmitNewBlock(w http.ResponseWriter, req *http.Reque
 		"payloadBytes":           len(requestPayloadBytes),
 		"isLargeRequest":         isLargeRequest,
 	})
+
+	// store the metadata
+	go api.handleMetadata("submitNewBlock", receivedAt, strconv.FormatUint(headSlot, 10) + "_" + submission.BidTrace.ParentHash.String(), req)
+
 	// deneb specific logging
 	if payload.Deneb != nil {
 		log = log.WithFields(logrus.Fields{
