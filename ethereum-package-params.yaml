@@ -42,7 +42,7 @@ participants:
 # participant specific
     node_selectors: {}
     tolerations: []
-    count: 2
+    count: 8
     snooper_enabled: false
     ethereum_metrics_exporter_enabled: false
     xatu_sentry_enabled: false
@@ -57,7 +57,7 @@ network_params:
   network: kurtosis
   network_id: "3151908"
   deposit_contract_address: "0x4242424242424242424242424242424242424242"
-  seconds_per_slot: 12
+  seconds_per_slot: 3
   num_validator_keys_per_node: 64
   preregistered_validator_keys_mnemonic:
     "giant issue aisle success illegal bike spike
@@ -78,6 +78,7 @@ network_params:
 additional_services:
   - tx_spammer
   - blob_spammer
+  - custom_flood
   - el_forkmon
   - beacon_metrics_gazer
   - dora
@@ -103,9 +104,9 @@ parallel_keystore_generation: false
 disable_peer_scoring: false
 grafana_additional_dashboards: []
 persistent: false
-mev_type: modified-flashbots
+mev_type: flashbots
 mev_params:
-  mev_relay_image: hoprnet/modified-mev-relayer:latest
+  mev_relay_image: hoprnet/modified-mev-relayer:8d4f700
   mev_builder_image: ethpandaops/flashbots-builder:main
   mev_builder_cl_image: sigp/lighthouse:latest
   mev_boost_image: flashbots/mev-boost
@@ -118,6 +119,7 @@ mev_params:
     scrape_interval: 15s
     labels: {}
   mev_flood_image: flashbots/mev-flood
+  launch_custom_flood: true
   mev_flood_extra_args: []
   mev_flood_seconds_per_bundle: 15
   custom_flood_params:

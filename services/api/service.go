@@ -887,10 +887,6 @@ func (api *RelayAPI) Respond(w http.ResponseWriter, code int, response any) {
 	}
 }
 
-func (api *RelayAPI) handleStatus(w http.ResponseWriter, req *http.Request) {
-	w.WriteHeader(http.StatusOK)
-}
-
 func (api *RelayAPI) handleMetadata(reqName string, t time.Time, k string, req *http.Request) {
 	ua := req.UserAgent()
 
@@ -936,7 +932,15 @@ func (api *RelayAPI) handleMetadata(reqName string, t time.Time, k string, req *
 //  PROPOSER APIS
 // ---------------
 
+func (api *RelayAPI) handleStatus(w http.ResponseWriter, req *http.Request) {
+	// store the metadata
+	go api.handleMetadata("getStatus", time.Now().UTC(), "", req)
+	w.WriteHeader(http.StatusOK)
+}
+
 func (api *RelayAPI) handleRoot(w http.ResponseWriter, req *http.Request) {
+	// store the metadata
+	go api.handleMetadata("root", time.Now().UTC(), "", req)
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "MEV-Boost Relay API")
 }
@@ -1188,6 +1192,9 @@ func (api *RelayAPI) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 		"slotStartSec":     slotStartTimestamp,
 		"msIntoSlot":       msIntoSlot,
 	})
+
+	// store the metadata
+	go api.handleMetadata("getHeader", requestTime, slotStr + " > " + strconv.FormatInt(msIntoSlot, 10) + " > ", req)
 
 	if len(proposerPubkeyHex) != 98 {
 		api.RespondError(w, http.StatusBadRequest, common.ErrInvalidPubkey.Error())
@@ -1636,7 +1643,7 @@ func (api *RelayAPI) handleGetPayload(w http.ResponseWriter, req *http.Request) 
 // --------------------
 func (api *RelayAPI) handleBuilderGetValidators(w http.ResponseWriter, req *http.Request) {
 	// store the metadata
-	go api.handleMetadata("builderGetValidators", time.Now().UTC(), "",req)
+	go api.handleMetadata("builderGetValidators", time.Now().UTC(), "", req)
 
 	api.proposerDutiesLock.RLock()
 	resp := api.proposerDutiesResponse
