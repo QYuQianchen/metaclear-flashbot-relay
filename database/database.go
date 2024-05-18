@@ -20,6 +20,7 @@ import (
 
 type IDatabaseService interface {
 	SaveMetadata(reqName string, t time.Time, ua string, ip string, port string, contentLength int64, k string) error
+	GetValidatorMetadatas(pubkeys []string) ([]*MetadataEntry, error)
 
 	NumRegisteredValidators() (count uint64, err error)
 	SaveValidatorRegistration(entry ValidatorRegistrationEntry) (int64, error)
@@ -127,6 +128,20 @@ func (s *DatabaseService) SaveMetadata(reqName string, t time.Time, ua string, i
 
 	_, err := s.DB.NamedExec(query, entry)
 	return err
+}
+
+func (s *DatabaseService) GetValidatorMetadatas(pubkeys []string) (entries []*MetadataEntry, err error) {
+	query := `SELECT DISTINCT ON (key) key, ip, port, ua, received_at
+		FROM ` + vars.TableMetadata + `
+		WHERE key IN (?)
+		ORDER BY key, received_at DESC;`
+
+	q, args, err := sqlx.In(query, pubkeys)
+	if err != nil {
+		return nil, err
+	}
+	err = s.DB.Select(&entries, s.DB.Rebind(q), args...)
+	return entries, err
 }
 
 // NumRegisteredValidators returns the number of unique pubkeys that have registered

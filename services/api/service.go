@@ -1280,8 +1280,6 @@ func (api *RelayAPI) checkProposerSignature(block *common.VersionedSignedBlinded
 }
 
 func (api *RelayAPI) handleGetPayload(w http.ResponseWriter, req *http.Request) {
-	vars := mux.Vars(req)
-
 	api.getPayloadCallsInFlight.Add(1)
 	defer api.getPayloadCallsInFlight.Done()
 
@@ -1350,6 +1348,12 @@ func (api *RelayAPI) handleGetPayload(w http.ResponseWriter, req *http.Request) 
 		api.RespondError(w, http.StatusBadRequest, "failed to get payload proposer index")
 		return
 	}
+	parentRoot, err := payload.ParentRoot()
+	if err != nil {
+		log.WithError(err).Warn("failed to get payload parent root")
+		api.RespondError(w, http.StatusBadRequest, "failed to get payload parent root")
+		return
+	}
 	slotStartTimestamp := api.genesisInfo.Data.GenesisTime + (uint64(slot) * common.SecondsPerSlot)
 	msIntoSlot := decodeTime.UnixMilli() - int64((slotStartTimestamp * 1000))
 	log = log.WithFields(logrus.Fields{
@@ -1363,7 +1367,7 @@ func (api *RelayAPI) handleGetPayload(w http.ResponseWriter, req *http.Request) 
 	})
 
 	// store the metadata
-	go api.handleMetadata("getPayload", receivedAt, vars["slot"] + vars["parent_hash"] + " > " + strconv.FormatInt(msIntoSlot, 10) + " ms into slot", req)
+	go api.handleMetadata("getPayload", receivedAt, strconv.FormatUint(uint64(slot), 10) + "_" + parentRoot.String() + " > " + strconv.FormatInt(msIntoSlot, 10) + " ms into slot", req)
 
 	// Ensure the proposer index is expected
 	api.proposerDutiesLock.RLock()
@@ -1649,10 +1653,6 @@ func (api *RelayAPI) handleBuilderGetValidators(w http.ResponseWriter, req *http
 
 	api.proposerDutiesLock.RLock()
 	resp := api.proposerDutiesResponse
-
-	api.log.WithFields(logrus.Fields{
-		"proposerDutiesResponse": api.proposerDutiesResponse,
-	}).Info("proposerDutiesResponse")
 
 	api.proposerDutiesLock.RUnlock()
 	_, err := w.Write(*resp)

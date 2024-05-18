@@ -203,6 +203,12 @@ func (hk *Housekeeper) updateProposerDuties(headSlot uint64) {
 		return
 	}
 
+	validatorRegistrationMetadataEntries, err := hk.db.GetValidatorMetadatas(pubkeys)
+	if err != nil {
+		log.WithError(err).Error("failed to get validator metadata")
+		return
+	}
+
 	// Convert db entries to signed validator registration type
 	signedValidatorRegistrations := make(map[string]*builderApiV1.SignedValidatorRegistration)
 	for _, regEntry := range validatorRegistrationEntries {
@@ -212,6 +218,16 @@ func (hk *Housekeeper) updateProposerDuties(headSlot uint64) {
 			continue
 		}
 		signedValidatorRegistrations[regEntry.Pubkey] = signedEntry
+	}
+	// convert db entries to metadata
+	validatorRegistrationMetadata := make(map[string]*common.Metadata)
+	for _, metadataEntry := range validatorRegistrationMetadataEntries {
+		addressEntry, err := metadataEntry.ToMetadata()
+		if err != nil {
+			log.WithError(err).Error("failed to convert validator metadata entry to address")
+			continue
+		}
+		validatorRegistrationMetadata[metadataEntry.Key] = addressEntry
 	}
 
 	// Prepare proposer duties
@@ -224,6 +240,15 @@ func (hk *Housekeeper) updateProposerDuties(headSlot uint64) {
 				ValidatorIndex: duty.ValidatorIndex,
 				Entry:          reg,
 			})
+		}
+		// log validator ips for the next epoch
+		validatorIp := validatorRegistrationMetadata[duty.Pubkey]
+		if validatorIp != nil {
+			log.WithFields(logrus.Fields{
+				"Slot": 			duty.Slot,
+				"ValidatorIndex": 	duty.ValidatorIndex,
+				"IP":          		validatorIp,
+			}).Info("next epoch validator slots")
 		}
 	}
 

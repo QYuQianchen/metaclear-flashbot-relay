@@ -682,3 +682,8 @@ func (s *SubmitBlockRequestV2Optimistic) SizeSSZ() (size int) {
 
 	return
 }
+
+type Metadata struct {
+	Address	string `json:"address"`
+	Pubkey	string `json:"pubkey"`
+}

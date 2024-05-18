@@ -24,6 +24,10 @@ func (db MockDB) SaveMetadata(reqName string, t time.Time, ua string, ip string,
 	return nil
 }
 
+func (db MockDB) GetValidatorMetadatas(pubkey string) ([]*MetadataEntry, error) {
+	return nil, nil
+}
+
 func (db MockDB) SaveValidatorRegistration(entry ValidatorRegistrationEntry) (int64, error) {
 	return 0, nil
 }

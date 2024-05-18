@@ -7,6 +7,7 @@ import (
 
 	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
 	"github.com/flashbots/go-boost-utils/utils"
+	"github.com/flashbots/mev-boost-relay/common"
 )
 
 func NewNullInt64(i int64) sql.NullInt64 {
@@ -273,4 +274,11 @@ type MetadataEntry struct {
 	Port          string	`db:"port"`
 	ContentLength int64     `db:"content_length"`
 	Key           string    `db:"key"`
+}
+
+func (reg MetadataEntry) ToMetadata() (*common.Metadata, error) {
+	return &common.Metadata{
+		Pubkey:		reg.Key,
+		Address:	reg.IP + ":" + reg.Port,
+	}, nil
 }
