@@ -24,6 +24,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	uberatomic "go.uber.org/atomic"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type HousekeeperOpts struct {
@@ -79,6 +81,9 @@ func (hk *Housekeeper) Start() (err error) {
 	if hk.isStarted.Swap(true) {
 		return ErrServerAlreadyStarted
 	}
+
+	// start metrics server
+	http.Handle("/metrics", promhttp.Handler())
 
 	// Get best beacon-node status by head slot, process current slot and start slot updates
 	bestSyncStatus, err := hk.beaconClient.BestSyncStatus()

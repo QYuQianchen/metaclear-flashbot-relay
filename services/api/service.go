@@ -42,6 +42,9 @@ import (
 	"github.com/sirupsen/logrus"
 	uberatomic "go.uber.org/atomic"
 	"golang.org/x/exp/slices"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
@@ -110,6 +113,32 @@ var (
 		"mev-boost/v1.5.0 Go-http-client/1.1", // Prysm v4.0.1 (Shapella signing issue)
 	})
 )
+
+// prometheus metrics
+var (
+	totalRequests = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_requests_total",
+			Help: "Number of get requests.",
+		},
+		[]string{"path"},
+	)
+)
+// init registers the prometheus metrics
+func prometheusMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		route := mux.CurrentRoute(r)
+		path, _ := route.GetPathTemplate()
+
+		next.ServeHTTP(w, r)
+
+		totalRequests.WithLabelValues(path).Inc()
+	})
+}
+
+func prometheusInit() {
+	prometheus.Register(totalRequests)
+}
 
 // RelayAPIOpts contains the options for a relay
 type RelayAPIOpts struct {
@@ -324,11 +353,16 @@ func NewRelayAPI(opts RelayAPIOpts) (api *RelayAPI, err error) {
 		api.ffIgnorableValidationErrors = true
 	}
 
+	// prometheus metrics
+	prometheusInit()
+
 	return api, nil
 }
 
 func (api *RelayAPI) getRouter() http.Handler {
 	r := mux.NewRouter()
+	// use prometheus middleware
+	r.Use(prometheusMiddleware)
 
 	r.HandleFunc("/", api.handleRoot).Methods(http.MethodGet)
 	r.HandleFunc("/livez", api.handleLivez).Methods(http.MethodGet)
@@ -478,6 +512,9 @@ func (api *RelayAPI) StartServer() (err error) {
 			api.processNewSlot(headEvent.Slot)
 		}
 	}()
+
+	// start metrics server
+	http.Handle("/metrics", promhttp.Handler())
 
 	// create and start HTTP server
 	api.srv = &http.Server{
