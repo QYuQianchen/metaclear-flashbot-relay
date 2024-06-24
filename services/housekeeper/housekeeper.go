@@ -25,6 +25,7 @@ import (
 	"github.com/sirupsen/logrus"
 	uberatomic "go.uber.org/atomic"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -60,6 +61,21 @@ type Housekeeper struct {
 
 var ErrServerAlreadyStarted = errors.New("server was already started")
 
+// prometheus metrics
+var (
+	totalProposerDuties = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "proposer_duties_total_per_validator",
+			Help: "Number of selected proposer duties per validator",
+		},
+		[]string{"validator"},
+	)
+)
+
+func prometheusInit() {
+	prometheus.Register(totalProposerDuties)
+}
+
 func NewHousekeeper(opts *HousekeeperOpts) *Housekeeper {
 	server := &Housekeeper{
 		opts:                  opts,
@@ -84,6 +100,9 @@ func (hk *Housekeeper) Start() (err error) {
 
 	// start metrics server
 	http.Handle("/metrics", promhttp.Handler())
+
+	// prometheus metrics
+	prometheusInit()
 
 	// Get best beacon-node status by head slot, process current slot and start slot updates
 	bestSyncStatus, err := hk.beaconClient.BestSyncStatus()
@@ -189,6 +208,12 @@ func (hk *Housekeeper) updateProposerDuties(headSlot uint64) {
 	}
 	entries := r.Data
 
+	// Get registrations from database (part 1: for current epoch)
+	pubkeys := []string{}
+	for _, entry := range entries {
+		pubkeys = append(pubkeys, entry.Pubkey)
+	}
+
 	// Query next epoch
 	r2, err := hk.beaconClient.GetProposerDuties(epoch + 1)
 	if err != nil {
@@ -197,11 +222,12 @@ func (hk *Housekeeper) updateProposerDuties(headSlot uint64) {
 		entries = append(entries, r2.Data...)
 	}
 
-	// Get registrations from database
-	pubkeys := []string{}
-	for _, entry := range entries {
+	// Get registrations from database (part 2: for next epoch)
+	for _, entry := range r2.Data {
 		pubkeys = append(pubkeys, entry.Pubkey)
+		totalProposerDuties.WithLabelValues(entry.Pubkey).Inc()
 	}
+
 	validatorRegistrationEntries, err := hk.db.GetValidatorRegistrationsForPubkeys(pubkeys)
 	if err != nil {
 		log.WithError(err).Error("failed to get validator registrations")
