@@ -83,6 +83,9 @@ var (
 	pathInternalBuilderStatus     = "/internal/v1/builder/{pubkey:0x[a-fA-F0-9]+}"
 	pathInternalBuilderCollateral = "/internal/v1/builder/collateral/{pubkey:0x[a-fA-F0-9]+}"
 
+	// metrics API
+	pathMetrics = "/metrics"
+
 	// number of goroutines to save active validator
 	numValidatorRegProcessors = cli.GetEnvInt("NUM_VALIDATOR_REG_PROCESSORS", 10)
 
@@ -124,20 +127,10 @@ var (
 		[]string{"path"},
 	)
 )
-// init registers the prometheus metrics
-func prometheusMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		route := mux.CurrentRoute(r)
-		path, _ := route.GetPathTemplate()
 
-		next.ServeHTTP(w, r)
-
-		totalRequests.WithLabelValues(path).Inc()
-	})
-}
-
-func prometheusInit() {
-	prometheus.Register(totalRequests)
+func initMetrics() {
+	// Register metrics with Prometheus
+	prometheus.MustRegister(totalRequests)
 }
 
 // RelayAPIOpts contains the options for a relay
@@ -354,9 +347,21 @@ func NewRelayAPI(opts RelayAPIOpts) (api *RelayAPI, err error) {
 	}
 
 	// prometheus metrics
-	prometheusInit()
+	initMetrics()
 
 	return api, nil
+}
+
+// init registers the prometheus metrics
+func prometheusMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		route := mux.CurrentRoute(r)
+		path, _ := route.GetPathTemplate()
+
+		next.ServeHTTP(w, r)
+
+		totalRequests.WithLabelValues(path).Inc()
+	})
 }
 
 func (api *RelayAPI) getRouter() http.Handler {
@@ -404,6 +409,9 @@ func (api *RelayAPI) getRouter() http.Handler {
 		r.HandleFunc(pathInternalBuilderStatus, api.handleInternalBuilderStatus).Methods(http.MethodGet, http.MethodPost, http.MethodPut)
 		r.HandleFunc(pathInternalBuilderCollateral, api.handleInternalBuilderCollateral).Methods(http.MethodPost, http.MethodPut)
 	}
+
+	// prometheus metrics
+	r.Handle(pathMetrics, promhttp.Handler()).Methods(http.MethodGet)
 
 	mresp := common.MustB64Gunzip("H4sICAtOkWQAA2EudHh0AKWVPW+DMBCGd36Fe9fIi5Mt8uqqs4dIlZiCEqosKKhVO2Txj699GBtDcEl4JwTnh/t4dS7YWom2FcVaiETSDEmIC+pWLGRVgKrD3UY0iwnSj6THofQJDomiR13BnPgjvJDqNWX+OtzH7inWEGvr76GOCGtg3Kp7Ak+lus3zxLNtmXaMUncjcj1cwbOH3xBZtJCYG6/w+hdpB6ErpnqzFPZxO4FdXB3SAEgpscoDqWeULKmJA4qyfYFg0QV+p7hD8GGDd6C8+mElGDKab1CWeUQMVVvVDTJVj6nngHmNOmSoe6yH1BM3KZIKpuRaHKrOFd/3ksQwzdK+ejdM4VTzSDfjJsY1STeVTWb0T9JWZbJs8DvsNvwaddKdUy4gzVIzWWaWk3IF8D35kyUDf3FfKipwk/DYUee2nYyWQD0xEKDHeprzeXYwVmZD/lXt1OOg8EYhFfitsmQVcwmbUutpdt3PoqWdMyd2DYHKbgcmPlEYMxPjR6HhxOfuNG52xZr7TtzpygJJKNtWS14Uf0T6XSmzBwAA")
 	r.HandleFunc("/miladyz", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK); w.Write(mresp) }).Methods(http.MethodGet) //nolint:errcheck
@@ -512,9 +520,6 @@ func (api *RelayAPI) StartServer() (err error) {
 			api.processNewSlot(headEvent.Slot)
 		}
 	}()
-
-	// start metrics server
-	http.Handle("/metrics", promhttp.Handler())
 
 	// create and start HTTP server
 	api.srv = &http.Server{
