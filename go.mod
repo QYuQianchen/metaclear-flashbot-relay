@@ -1,4 +1,4 @@
-module github.com/QYuQianchen/metaclear-flashbot-relay
+module github.com/flashbots/mev-boost-relay
 
 go 1.21
 

@@ -26,7 +26,6 @@ import (
 	uberatomic "go.uber.org/atomic"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type HousekeeperOpts struct {
