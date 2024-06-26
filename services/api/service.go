@@ -126,7 +126,6 @@ var (
 		},
 		[]string{"path"},
 	)
-	// proposerPubKeyIpMap = prometheus.NewGaugeVec(
 )
 
 func initMetrics() {

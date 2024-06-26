@@ -12,7 +12,25 @@ import (
 	"github.com/flashbots/mev-boost-relay/common"
 	"github.com/r3labs/sse/v2"
 	"github.com/sirupsen/logrus"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
+
+// prometheus metrics
+var (
+	elapsedTimeHistogramVec = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "elapsed_time_histogram",
+			Help: "Time it has taken to get the response",
+		},
+		[]string{"endpoint"},
+	)
+)
+
+// Register metrics with Prometheus
+func initMetrics() {
+	prometheus.MustRegister(elapsedTimeHistogramVec)
+}
 
 type ProdBeaconInstance struct {
 	log       *logrus.Entry
@@ -28,6 +46,9 @@ func NewProdBeaconInstance(log *logrus.Entry, beaconURI string) *ProdBeaconInsta
 		"component": "beaconInstance",
 		"beaconURI": beaconURI,
 	})
+
+	// initiate prometheus metrics
+	initMetrics()
 
 	client := &ProdBeaconInstance{_log, beaconURI, false, false}
 
@@ -287,6 +308,7 @@ func (c *ProdBeaconInstance) PublishBlock(block *common.VersionedSignedProposal,
 		"publishDurationMs": publishDurationMs,
 		"payloadBytes":      len(payloadBytes),
 	}).Info("finished publish block request")
+	elapsedTimeHistogramVec.WithLabelValues(uri).Observe(float64(publishDurationMs))
 	return code, err
 }
 
