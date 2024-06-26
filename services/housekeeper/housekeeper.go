@@ -98,9 +98,6 @@ func (hk *Housekeeper) Start() (err error) {
 		return ErrServerAlreadyStarted
 	}
 
-	// start metrics server
-	http.Handle("/metrics", promhttp.Handler())
-
 	// prometheus metrics
 	prometheusInit()
 

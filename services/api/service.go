@@ -35,7 +35,7 @@ import (
 	"github.com/flashbots/mev-boost-relay/common"
 	"github.com/flashbots/mev-boost-relay/database"
 	"github.com/flashbots/mev-boost-relay/datastore"
-	"github.com/go-redis/redis/v9"
+	"github.com/redis/go-redis/v9"
 	"github.com/gorilla/mux"
 	"github.com/holiman/uint256"
 	"github.com/pkg/errors"
@@ -126,6 +126,7 @@ var (
 		},
 		[]string{"path"},
 	)
+	// proposerPubKeyIpMap = prometheus.NewGaugeVec(
 )
 
 func initMetrics() {

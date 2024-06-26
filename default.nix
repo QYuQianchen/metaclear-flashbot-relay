@@ -38,5 +38,16 @@ pkgs.mkShell {
       echo "Launching testnet with Kurtosis..."
       kurtosis clean -a && kurtosis --enclave local-eth-testnet run github.com/kurtosis-tech/ethereum-package --args-file ./ethereum-package-params.yaml
     }
+
+    function open_service_url() {
+      local service_name=$1
+      local url=$(kurtosis enclave inspect local-eth-testnet | grep "$service_name" | awk -F ' -> ' '{split($2, a, " "); print a[1]}')
+      if [ -n "$url" ]; then
+          echo "Opening $service_name at $url"
+          open "$url"
+      else
+          echo "URL for $service_name not found."
+      fi
+    }
   '';
 }
