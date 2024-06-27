@@ -14,11 +14,12 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 // prometheus metrics
 var (
-	elapsedTimeHistogramVec = prometheus.NewHistogramVec(
+	elapsedTimeHistogramVec = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "elapsed_time_histogram",
 			Help: "Time it has taken to get the response",
@@ -26,11 +27,6 @@ var (
 		[]string{"endpoint"},
 	)
 )
-
-// Register metrics with Prometheus
-func initMetrics() {
-	prometheus.MustRegister(elapsedTimeHistogramVec)
-}
 
 type ProdBeaconInstance struct {
 	log       *logrus.Entry
@@ -46,9 +42,6 @@ func NewProdBeaconInstance(log *logrus.Entry, beaconURI string) *ProdBeaconInsta
 		"component": "beaconInstance",
 		"beaconURI": beaconURI,
 	})
-
-	// initiate prometheus metrics
-	initMetrics()
 
 	client := &ProdBeaconInstance{_log, beaconURI, false, false}
 

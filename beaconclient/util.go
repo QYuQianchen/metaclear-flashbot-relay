@@ -65,13 +65,6 @@ func fetchBeacon(method, url string, payload []byte, dst any, timeout *time.Dura
 	}
 	defer resp.Body.Close()
 
-	// read the response header and log it
-	respHeaders := make(http.Header)
-	for k, v := range resp.Header {
-		respHeaders[k] = v
-	}
-	fmt.Printf("fetchBeacon of url %s with headers: %v\n", url, respHeaders)
-
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return resp.StatusCode, fmt.Errorf("could not read response body for %s: %w", url, err)
