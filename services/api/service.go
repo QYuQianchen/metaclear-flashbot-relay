@@ -44,6 +44,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -119,7 +120,7 @@ var (
 
 // prometheus metrics
 var (
-	totalRequests = prometheus.NewCounterVec(
+	totalRequests = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_requests_total",
 			Help: "Number of get requests.",
@@ -127,11 +128,6 @@ var (
 		[]string{"path"},
 	)
 )
-
-func initMetrics() {
-	// Register metrics with Prometheus
-	prometheus.MustRegister(totalRequests)
-}
 
 // RelayAPIOpts contains the options for a relay
 type RelayAPIOpts struct {
@@ -345,9 +341,6 @@ func NewRelayAPI(opts RelayAPIOpts) (api *RelayAPI, err error) {
 		api.log.Warn("env: ENABLE_IGNORABLE_VALIDATION_ERRORS - some validation errors will be ignored")
 		api.ffIgnorableValidationErrors = true
 	}
-
-	// prometheus metrics
-	initMetrics()
 
 	return api, nil
 }
@@ -779,6 +772,15 @@ func (api *RelayAPI) processPayloadAttributes(payloadAttributes beaconclient.Pay
 		"randao":    payloadAttributes.Data.PayloadAttributes.PrevRandao,
 		"timestamp": payloadAttributes.Data.PayloadAttributes.Timestamp,
 	}).Info("updated payload attributes")
+
+	// Step 3: save the payload attributes to the database
+	defer func() {
+		err := api.db.SavePayloadAttributes(payloadAttrSlot, payloadAttributes.Data.ParentBlockHash, withdrawalsRoot.String(), parentBeaconRoot.String(), payloadAttributes.Data.PayloadAttributes.PrevRandao, payloadAttributes.Data.PayloadAttributes.Timestamp)
+		if err != nil {
+			api.log.WithError(err).WithField("payloadAttrSlot", payloadAttrSlot).Error("saving payload attributes to database failed")
+			return
+		}
+	}()
 }
 
 func (api *RelayAPI) processNewSlot(headSlot uint64) {
@@ -866,6 +868,15 @@ func (api *RelayAPI) updateProposerDuties(headSlot uint64) {
 	}
 	sort.Strings(_duties)
 	api.log.Infof("proposer duties updated: %s", strings.Join(_duties, ", "))
+
+	// save to database
+	defer func() {
+		err := api.db.SaveProposerDuties(duties)
+		if err != nil {
+			api.log.WithError(err).WithField("headSlot", headSlot).Error("saving proposer duties to database failed")
+			return
+		}
+	}()
 }
 
 func (api *RelayAPI) prepareBuildersForSlot(headSlot uint64) {

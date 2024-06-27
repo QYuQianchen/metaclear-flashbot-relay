@@ -21,6 +21,8 @@ import (
 type IDatabaseService interface {
 	SaveMetadata(reqName string, t time.Time, ua string, ip string, port string, contentLength int64, k string) error
 	GetValidatorMetadatas(pubkeys []string) ([]*MetadataEntry, error)
+	SaveProposerDuties(duties []common.BuilderGetValidatorsResponseEntry) error
+	SavePayloadAttributes(payloadAttrSlot uint64, parentHash string, withdrawalsRootString string, parentBeaconRootString string, prevRandao string, timestamp uint64) error
 
 	NumRegisteredValidators() (count uint64, err error)
 	SaveValidatorRegistration(entry ValidatorRegistrationEntry) (int64, error)
@@ -128,6 +130,47 @@ func (s *DatabaseService) SaveMetadata(reqName string, t time.Time, ua string, i
 
 	_, err := s.DB.NamedExec(query, entry)
 	return err
+}
+
+func (s *DatabaseService) SaveProposerDuties(duties []common.BuilderGetValidatorsResponseEntry) error {
+	// Convert propser duties to entries
+	entries := make([]ProposerDutiesEntry, len(duties))
+	for i, duty := range duties {
+		entries[i] = ProposerDutiesEntry{
+			Slot:           duty.Slot,
+			ValidatorIndex: duty.ValidatorIndex,
+			ProposerPubkey: fmt.Sprintf("%#x", duty.Entry.Message.Pubkey),
+		}
+	}
+
+	// create a query to insert multiple rows
+	query := `INSERT INTO ` + vars.TableProposerDuties + ` (slot, validator_index, proposer_pubkey) VALUES `
+	for i, _ := range entries {
+		query += fmt.Sprintf("(:slot%d, :validator_index%d, :proposer_pubkey%d),", i, i, i)
+	}
+	query = strings.TrimSuffix(query, ",") + ";"
+
+	// execute the query to insert rows to the database
+	_, err := s.DB.NamedExec(query, entries)
+	return err
+}
+
+func (s *DatabaseService) SavePayloadAttributes(payloadAttrSlot uint64, parentHash string, withdrawalsRootString string, parentBeaconRootString string, prevRandao string, timestamp uint64) error {
+	entry := PayloadAttributesEntry{
+		Slot:            payloadAttrSlot,
+		ParentHash:      parentHash,
+		WithdrawalsRoot: withdrawalsRootString,
+		ParentBeaconRoot: parentBeaconRootString,
+		PrevRandao:      prevRandao,
+		Timestamp:       timestamp,
+	}
+
+	query := `INSERT INTO ` + vars.TablePayloadAttributes + ` (slot, parent_hash, withdrawals_root, parent_beacon_root, prev_randao, timestamp)
+	VALUES (:slot, :parent_hash, :withdrawals_root, :parent_beacon_root, :prev_randao, :timestamp);`
+
+	_, err := s.DB.NamedExec(query, entry)
+	return err
+
 }
 
 func (s *DatabaseService) GetValidatorMetadatas(pubkeys []string) (entries []*MetadataEntry, err error) {

@@ -282,3 +282,23 @@ func (reg MetadataEntry) ToMetadata() (*common.Metadata, error) {
 		Address:	reg.IP + ":" + reg.Port,
 	}, nil
 }
+
+type ProposerDutiesEntry struct {
+	ID               int64     `db:"id"`
+	InsertedAt		 time.Time `db:"inserted_at"`
+
+	Slot             uint64    `db:"slot"`
+	ValidatorIndex   uint64    `db:"validator_index"`
+	ProposerPubkey   string    `db:"proposer_pubkey"`
+}
+
+type PayloadAttributesEntry struct {
+	ID               int64     `db:"id"`
+	InsertedAt		 time.Time `db:"inserted_at"`
+	Slot             uint64    `db:"slot"`
+	ParentHash		 string    `db:"parent_hash"`	
+	WithdrawalsRoot  string	   `db:"withdrawals_root"`
+	ParentBeaconRoot string	   `db:"parent_beacon_root"`
+	PrevRandao		 string	   `db:"prev_randao"`
+	Timestamp		 uint64  `db:"timestamp"`
+}

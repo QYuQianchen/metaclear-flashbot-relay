@@ -28,6 +28,14 @@ func (db MockDB) GetValidatorMetadatas(pubkey []string) ([]*MetadataEntry, error
 	return nil, nil
 }
 
+func (db MockDB) SaveProposerDuties(duties []common.BuilderGetValidatorsResponseEntry) error {
+	return nil
+}
+
+func (db MockDB) SavePayloadAttributes(payloadAttrSlot uint64, parentHash string, withdrawalsRootString string, parentBeaconRootString string, prevRandao string, timestamp uint64) error {
+	return nil
+}
+
 func (db MockDB) SaveValidatorRegistration(entry ValidatorRegistrationEntry) (int64, error) {
 	return 0, nil
 }

@@ -71,6 +71,48 @@ func createMetadata(method string) MetadataEntry {
 	}
 }
 
+func createProposerDuties() []common.BuilderGetValidatorsResponseEntry {
+	// Constructing the object
+	payload1 := &builderApiV1.SignedValidatorRegistration{
+		Message: &builderApiV1.ValidatorRegistration{
+			GasLimit:  uint64(30000000),
+			Timestamp: time.Unix(int64(1606824043), 0),
+			Pubkey:       phase0.BLSPubKey{},
+		},
+	}
+	payload2 := &builderApiV1.SignedValidatorRegistration{
+		Message: &builderApiV1.ValidatorRegistration{
+			GasLimit:  uint64(30000000),
+			Timestamp: time.Unix(int64(1606824343), 0),
+			Pubkey:       phase0.BLSPubKey{},
+		},
+	}
+	return []common.BuilderGetValidatorsResponseEntry{
+		common.BuilderGetValidatorsResponseEntry{
+			Slot: 12345,
+			ValidatorIndex: 1,
+			Entry: payload1,
+		},
+		common.BuilderGetValidatorsResponseEntry{
+			Slot: 12346,
+			ValidatorIndex: 3,
+			Entry: payload2,
+		},
+	}
+}
+
+func createPayloadAttributes() PayloadAttributesEntry {
+	return PayloadAttributesEntry{
+		Slot: slot,
+		ParentHash: "0x00bb8996515293fcd87ca09b5c6ffe5c17f043c600bb8996515293fcd8012343",
+		WithdrawalsRoot: "0x00bb8996515293fcd87ca09b5c6ffe5c17f043c600bb8996515293fcd8012343",
+		ParentBeaconRoot: "0x00bb8996515293fcd87ca09b5c6ffe5c17f043c600bb8996515293fcd8012343",
+		PrevRandao: randao,
+		Timestamp: 1234567890,
+	}
+
+}
+
 func getTestKeyPair(t *testing.T) (*phase0.BLSPubKey, *bls.SecretKey) {
 	t.Helper()
 	sk, _, err := bls.GenerateNewKeypair()
@@ -225,6 +267,36 @@ func TestSaveMetadata(t *testing.T) {
 
 	// Save reg1
 	err = db.SaveMetadata(reg1.Method, reg1.ReceivedAt, reg1.UserAgent, reg1.IP, reg1.Port, reg1.ContentLength, reg1.Key)
+	require.NoError(t, err)
+}
+
+func TestSaveProposerDuties(t *testing.T) {
+	db := resetDatabase(t)
+
+	reg := createProposerDuties()
+
+	// Require empty DB
+	cnt, err := db.NumValidatorRegistrationRows()
+	require.NoError(t, err)
+	require.Equal(t, uint64(0), cnt, "DB not empty to start")
+
+	// Save reg
+	err = db.SaveProposerDuties(reg)
+	require.NoError(t, err)
+}
+
+func TestSavePayloadAttributes(t *testing.T) {
+	db := resetDatabase(t)
+
+	reg := createPayloadAttributes()
+
+	// Require empty DB
+	cnt, err := db.NumValidatorRegistrationRows()
+	require.NoError(t, err)
+	require.Equal(t, uint64(0), cnt, "DB not empty to start")
+
+	// Save reg
+	err = db.SavePayloadAttributes(reg.Slot, reg.ParentHash, reg.WithdrawalsRoot, reg.ParentBeaconRoot, reg.PrevRandao, reg.Timestamp)
 	require.NoError(t, err)
 }
 

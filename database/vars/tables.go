@@ -8,6 +8,8 @@ var (
 
 	TableMigrations             = tableBase + "_migrations"
 	TableMetadata  				= tableBase + "_metadata"
+	TableProposerDuties			= tableBase + "_proposer_duties"
+	TablePayloadAttributes		= tableBase + "_payload_attributes"
 	TableValidatorRegistration  = tableBase + "_validator_registration"
 	TableExecutionPayload       = tableBase + "_execution_payload"
 	TableBuilderBlockSubmission = tableBase + "_builder_block_submission"
