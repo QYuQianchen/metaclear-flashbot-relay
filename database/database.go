@@ -145,13 +145,20 @@ func (s *DatabaseService) SaveProposerDuties(duties []common.BuilderGetValidator
 
 	// create a query to insert multiple rows
 	query := `INSERT INTO ` + vars.TableProposerDuties + ` (slot, validator_index, proposer_pubkey) VALUES `
-	for i, _ := range entries {
-		query += fmt.Sprintf("(:slot%d, :validator_index%d, :proposer_pubkey%d),", i, i, i)
+	numOfFields := 3
+    params := make([]interface{}, len(entries)*numOfFields)
+	for i, entry := range entries {
+		pos := i * numOfFields
+		params[pos+0] = entry.Slot
+        params[pos+1] = entry.ValidatorIndex
+        params[pos+2] = entry.ProposerPubkey
+
+        query += `(?, ?, ?),`
 	}
 	query = strings.TrimSuffix(query, ",") + ";"
 
 	// execute the query to insert rows to the database
-	_, err := s.DB.NamedExec(query, entries)
+	_, err := s.DB.Exec(query, params...)
 	return err
 }
 

@@ -14,7 +14,7 @@ participants:
     el_max_mem: 0
 # CL
     cl_type: lighthouse
-    cl_image: hoprnet/metaclear-lighthouse:a3edc0555
+    cl_image: hoprnet/metaclear-lighthouse:14c10a8d8
     cl_log_level: "debug"
     cl_extra_env_vars: {}
     cl_extra_labels: {}
@@ -28,7 +28,7 @@ participants:
     use_separate_vc: true
 # Validator
     vc_type: lighthouse
-    vc_image: hoprnet/metaclear-lighthouse:a3edc0555
+    vc_image: hoprnet/metaclear-lighthouse:14c10a8d8
     vc_log_level: "debug"
     vc_extra_env_vars: {}
     vc_extra_labels: {}
@@ -107,7 +107,7 @@ grafana_additional_dashboards: []
 persistent: false
 mev_type: flashbots
 mev_params:
-  mev_relay_image: hoprnet/metaclear-mev-relayer:70caf61
+  mev_relay_image: hoprnet/metaclear-mev-relayer:a0a4a64
   mev_builder_image: ethpandaops/flashbots-builder:main
   mev_builder_cl_image: sigp/lighthouse:latest
   mev_boost_image: flashbots/mev-boost
