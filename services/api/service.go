@@ -127,6 +127,64 @@ var (
 		},
 		[]string{"path"},
 	)
+
+	genesisTime = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "genesis_time",
+			Help: "Genesis time of the chain.",
+		},
+	)
+
+	// block builder block submission metrics
+	submitBlockStartTimeIntoSlot = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "submit_block_start_time_into_slot",
+			Help:    "Start time of processing submit block request.",
+		},
+	)
+
+	submitBlockDuration = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "submit_block_duration",
+			Help:    "Duration of processing submit block request.",
+		},
+	)
+
+	// validator metrics
+	getHeaderStartTimeIntoSlot = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "get_header_start_time_into_slot",
+			Help:    "Start time of processing get header request.",
+		},
+	)
+
+	getHeaderDuration = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "get_header_duration",
+			Help:    "Duration of processing get header request.",
+		},
+	)
+
+	getPayloadStartTimeIntoSlot = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "get_payload_start_time_into_slot",
+			Help:    "Start time of processing get payload request.",
+		},
+	)
+
+	getPayloadDuration = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "get_payload_duration",
+			Help:    "Duration of processing get payload request.",
+		},
+	)
+
+	publishBlockStartTimeIntoSlot = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "publish_block_start_time_into_slot",
+			Help:    "Start time of processing publish block request.",
+		},
+	)
 )
 
 // RelayAPIOpts contains the options for a relay
@@ -441,6 +499,8 @@ func (api *RelayAPI) StartServer() (err error) {
 		return err
 	}
 	log.Infof("genesis info: %d", api.genesisInfo.Data.GenesisTime)
+	// store the geneis time
+	genesisTime.Set(float64(api.genesisInfo.Data.GenesisTime))
 
 	// Get and prepare fork schedule
 	forkSchedule, err := api.beaconClient.GetForkSchedule()
@@ -1318,6 +1378,11 @@ func (api *RelayAPI) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 		"value":     value.String(),
 		"blockHash": blockHash.String(),
 	}).Info("bid delivered")
+
+	// add metrics
+	getHeaderStartTimeIntoSlot.Observe(float64(msIntoSlot))
+	getHeaderDuration.Observe(float64(time.Since(requestTime).Milliseconds()))
+
 	api.RespondOK(w, bid)
 }
 
@@ -1409,6 +1474,9 @@ func (api *RelayAPI) handleGetPayload(w http.ResponseWriter, req *http.Request) 
 	}
 	slotStartTimestamp := api.genesisInfo.Data.GenesisTime + (uint64(slot) * common.SecondsPerSlot)
 	msIntoSlot := decodeTime.UnixMilli() - int64((slotStartTimestamp * 1000))
+	// add metrics
+	getPayloadStartTimeIntoSlot.Observe(float64(msIntoSlot))
+
 	log = log.WithFields(logrus.Fields{
 		"slot":                 slot,
 		"slotEpochPos":         (uint64(slot) % common.SlotsPerEpoch) + 1,
@@ -1667,6 +1735,10 @@ func (api *RelayAPI) handleGetPayload(w http.ResponseWriter, req *http.Request) 
 	log = log.WithField("timestampAfterPublishing", timeAfterPublish)
 	log.WithField("msNeededForPublishing", msNeededForPublishing).Info("block published through beacon node")
 
+	// update metrics
+	getPayloadDuration.Observe(float64(timeAfterPublish - receivedAt.UnixMilli()))
+	publishBlockStartTimeIntoSlot.Observe(float64(timeBeforePublish - int64((slotStartTimestamp * 1000))))
+	
 	// give the beacon network some time to propagate the block
 	time.Sleep(time.Duration(getPayloadResponseDelayMs) * time.Millisecond)
 
