@@ -144,21 +144,27 @@ func (s *DatabaseService) SaveProposerDuties(duties []common.BuilderGetValidator
 	}
 
 	// create a query to insert multiple rows
-	query := `INSERT INTO ` + vars.TableProposerDuties + ` (slot, validator_index, proposer_pubkey) VALUES `
-	numOfFields := 3
-    params := make([]interface{}, len(entries)*numOfFields)
-	for i, entry := range entries {
-		pos := i * numOfFields
-		params[pos+0] = entry.Slot
-        params[pos+1] = entry.ValidatorIndex
-        params[pos+2] = entry.ProposerPubkey
+	var queryBuilder strings.Builder
+	queryBuilder.WriteString("INSERT INTO ")
+	queryBuilder.WriteString(vars.TableProposerDuties)
+	queryBuilder.WriteString(" (slot, validator_index, proposer_pubkey) VALUES ")
 
-        query += `(?, ?, ?),`
+	// Placeholder for values
+	numOfFields := 3 // 3 fields per entry
+	valueStrings := make([]string, 0, len(entries))
+	valueArgs := make([]interface{}, 0, len(entries)*numOfFields)
+
+	// Construct placeholders and arguments
+	for i, entry := range entries {
+		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d)", i*3+1, i*3+2, i*3+3))
+		valueArgs = append(valueArgs, entry.Slot, entry.ValidatorIndex, entry.ProposerPubkey)
 	}
-	query = strings.TrimSuffix(query, ",") + ";"
+	// Join all value strings and append to the query
+	queryBuilder.WriteString(strings.Join(valueStrings, ","))
+	query := queryBuilder.String()
 
 	// execute the query to insert rows to the database
-	_, err := s.DB.Exec(query, params...)
+	_, err := s.DB.Exec(query, valueArgs...)
 	return err
 }
 
