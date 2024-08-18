@@ -122,7 +122,7 @@ var (
 var (
 	totalRequests = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "http_requests_total",
+			Name: "relayer_http_requests_total",
 			Help: "Number of get requests.",
 		},
 		[]string{"path"},
@@ -130,7 +130,7 @@ var (
 
 	genesisTime = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "genesis_time",
+			Name: "relayer_genesis_time",
 			Help: "Genesis time of the chain.",
 		},
 	)
@@ -138,14 +138,14 @@ var (
 	// block builder block submission metrics
 	submitBlockStartTimeIntoSlot = promauto.NewHistogram(
 		prometheus.HistogramOpts{
-			Name:    "submit_block_start_time_into_slot",
+			Name:    "relayer_submit_block_start_time_into_slot",
 			Help:    "Start time of processing submit block request.",
 		},
 	)
 
 	submitBlockDuration = promauto.NewHistogram(
 		prometheus.HistogramOpts{
-			Name:    "submit_block_duration",
+			Name:    "relayer_submit_block_duration",
 			Help:    "Duration of processing submit block request.",
 		},
 	)
@@ -153,35 +153,35 @@ var (
 	// validator metrics
 	getHeaderStartTimeIntoSlot = promauto.NewHistogram(
 		prometheus.HistogramOpts{
-			Name:    "get_header_start_time_into_slot",
+			Name:    "relayer_get_header_start_time_into_slot",
 			Help:    "Start time of processing get header request.",
 		},
 	)
 
 	getHeaderDuration = promauto.NewHistogram(
 		prometheus.HistogramOpts{
-			Name:    "get_header_duration",
+			Name:    "relayer_get_header_duration",
 			Help:    "Duration of processing get header request.",
 		},
 	)
 
 	getPayloadStartTimeIntoSlot = promauto.NewHistogram(
 		prometheus.HistogramOpts{
-			Name:    "get_payload_start_time_into_slot",
+			Name:    "relayer_get_payload_start_time_into_slot",
 			Help:    "Start time of processing get payload request.",
 		},
 	)
 
 	getPayloadDuration = promauto.NewHistogram(
 		prometheus.HistogramOpts{
-			Name:    "get_payload_duration",
+			Name:    "relayer_get_payload_duration",
 			Help:    "Duration of processing get payload request.",
 		},
 	)
 
 	publishBlockStartTimeIntoSlot = promauto.NewHistogram(
 		prometheus.HistogramOpts{
-			Name:    "publish_block_start_time_into_slot",
+			Name:    "relayer_publish_block_start_time_into_slot",
 			Help:    "Start time of processing publish block request.",
 		},
 	)
@@ -1737,7 +1737,7 @@ func (api *RelayAPI) handleGetPayload(w http.ResponseWriter, req *http.Request) 
 
 	// update metrics
 	getPayloadDuration.Observe(float64(timeAfterPublish - receivedAt.UnixMilli()))
-	publishBlockStartTimeIntoSlot.Observe(float64(timeBeforePublish - int64((slotStartTimestamp * 1000))))
+	publishBlockStartTimeIntoSlot.Observe(float64(timeBeforePublish - int64(slotStartTimestamp * 1000)))
 	
 	// give the beacon network some time to propagate the block
 	time.Sleep(time.Duration(getPayloadResponseDelayMs) * time.Millisecond)
@@ -1765,6 +1765,9 @@ func (api *RelayAPI) handleGetPayload(w http.ResponseWriter, req *http.Request) 
 		})
 	}
 	log.Info("execution payload delivered")
+
+	// add metrics
+	publishBlockStartTimeIntoSlot.Observe(float64(timeBeforePublish - int64(slotStartTimestamp * 1000)))
 }
 
 // --------------------
@@ -2401,6 +2404,11 @@ func (api *RelayAPI) handleSubmitNewBlock(w http.ResponseWriter, req *http.Reque
 		"profileTotalUs":     pf.Total,
 	}).Info("received block from builder")
 	w.WriteHeader(http.StatusOK)
+
+	// add metrics
+	slotStartTimestamp := api.genesisInfo.Data.GenesisTime + (uint64(slot) * common.SecondsPerSlot)
+	submitBlockStartTimeIntoSlot.Observe(float64(receivedAt.UnixMilli() - int64(slotStartTimestamp * 1000)))
+	submitBlockDuration.Observe(float64(nextTime.Sub(receivedAt).Milliseconds()))
 }
 
 // ---------------
