@@ -19,9 +19,9 @@ import (
 
 // prometheus metrics
 var (
-	elapsedTimeHistogramVec = promauto.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name: "elapsed_time_histogram",
+	elapsedTimeHistogramVec = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "relayer_beacon_elapsed_time_histogram",
 			Help: "Time it has taken to get the response",
 		},
 		[]string{"endpoint"},
@@ -301,7 +301,8 @@ func (c *ProdBeaconInstance) PublishBlock(block *common.VersionedSignedProposal,
 		"publishDurationMs": publishDurationMs,
 		"payloadBytes":      len(payloadBytes),
 	}).Info("finished publish block request")
-	elapsedTimeHistogramVec.WithLabelValues(uri).Observe(float64(publishDurationMs))
+	elapsedTimeHistogramVec.WithLabelValues("encode_duration").Set(float64(encodeDurationMs))
+	elapsedTimeHistogramVec.WithLabelValues("publish_duration").Set(float64(publishDurationMs))
 	return code, err
 }
 
